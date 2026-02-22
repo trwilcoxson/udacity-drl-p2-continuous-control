@@ -25,20 +25,25 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """DDPG Agent that interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, num_agents, random_seed):
+    def __init__(self, state_size, action_size, num_agents, random_seed,
+                 use_batch_norm=True):
         self.state_size = state_size
         self.action_size = action_size
         self.num_agents = num_agents
         self.seed = random.seed(random_seed)
 
         # Actor Network (w/ Target Network)
-        self.actor_local = Actor(state_size, action_size, random_seed).to(device)
-        self.actor_target = Actor(state_size, action_size, random_seed).to(device)
+        self.actor_local = Actor(state_size, action_size, random_seed,
+                                 use_batch_norm=use_batch_norm).to(device)
+        self.actor_target = Actor(state_size, action_size, random_seed,
+                                  use_batch_norm=use_batch_norm).to(device)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=LR_ACTOR)
 
         # Critic Network (w/ Target Network)
-        self.critic_local = Critic(state_size, action_size, random_seed).to(device)
-        self.critic_target = Critic(state_size, action_size, random_seed).to(device)
+        self.critic_local = Critic(state_size, action_size, random_seed,
+                                   use_batch_norm=use_batch_norm).to(device)
+        self.critic_target = Critic(state_size, action_size, random_seed,
+                                    use_batch_norm=use_batch_norm).to(device)
         self.critic_optimizer = optim.Adam(self.critic_local.parameters(),
                                            lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
 
@@ -50,6 +55,10 @@ class Agent():
 
         # Timestep counter for learning schedule
         self.timestep = 0
+
+        # Loss tracking for diagnostics
+        self.actor_losses = []
+        self.critic_losses = []
 
     def step(self, states, actions, rewards, next_states, dones, timestep):
         """Save experiences from all agents and learn if it's time."""
@@ -88,9 +97,10 @@ class Agent():
         states, actions, rewards, next_states, dones = experiences
 
         # --- Update critic --- #
-        actions_next = self.actor_target(next_states)
-        Q_targets_next = self.critic_target(next_states, actions_next)
-        Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
+        with torch.no_grad():
+            actions_next = self.actor_target(next_states)
+            Q_targets_next = self.critic_target(next_states, actions_next)
+            Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
         Q_expected = self.critic_local(states, actions)
         critic_loss = F.mse_loss(Q_expected, Q_targets)
 
@@ -106,6 +116,10 @@ class Agent():
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
+
+        # Track losses for diagnostics
+        self.critic_losses.append(critic_loss.item())
+        self.actor_losses.append(actor_loss.item())
 
         # --- Update target networks --- #
         self.soft_update(self.critic_local, self.critic_target, TAU)

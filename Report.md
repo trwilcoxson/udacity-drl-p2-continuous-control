@@ -70,7 +70,7 @@ Input (33) → FC1 (256, BatchNorm, ReLU) → FC2 (256, BatchNorm, ReLU) → FC3
 | FC3: 256 → 4 | 1,028 |
 | **Total** | **76,548** |
 
-BatchNorm normalizes activations after each hidden layer. The 33-dimensional state contains physical quantities with different units (positions, velocities, angles), and BatchNorm helps the network handle these varying scales. The final Tanh activation constrains actions to [-1, 1].
+BatchNorm normalizes activations after each hidden layer. The 33-dimensional state contains physical quantities with different units (positions in meters, velocities in m/s, angular velocities in rad/s, and goal-relative vectors), and BatchNorm serves as our state normalization strategy — handling these disparate scales adaptively without requiring manual feature scaling. The experimental comparison (below) shows this approach works well but is not strictly necessary. The final Tanh activation constrains actions to [-1, 1].
 
 ### Critic
 
@@ -112,11 +112,52 @@ Actions are injected after the first hidden layer, as recommended in the DDPG pa
 
 ![Training Scores](scores_plot.png)
 
-The plot shows the average score across all 20 agents per episode (light) and the 100-episode rolling average (dark). The environment was **solved at episode 157**, when the 100-episode rolling average first exceeded 30.0 (reaching 30.06). Training continued to 300 episodes, where the rolling average plateaued at approximately **37.1**.
+The plot shows the average score across all 20 agents per episode (light) and the 100-episode rolling average (dark). The environment was **solved at episode 153**, when the 100-episode rolling average first exceeded 30.0. Training continued to 300 episodes, where the rolling average plateaued at approximately **37.3**.
 
-**Training dynamics**: Scores start near 0.7 (random policy) and remain flat through episode ~25 as the replay buffer fills. Learning accelerates rapidly from episodes 30–100, with individual episode scores climbing from ~5 to ~30. By episode 100, most episodes score above 30. The rolling average crosses the solve threshold at episode 157 and stabilizes around 37 by episode 230.
+**Training dynamics**: Scores start near 0.1 (random policy) and remain flat through episode ~25 as the replay buffer fills. Learning accelerates rapidly from episodes 30–100, with individual episode scores climbing from ~5 to ~35. By episode 100, most episodes score above 30. The rolling average crosses the solve threshold at episode 153 and stabilizes around 37 by episode 230.
 
-**Greedy evaluation**: After training, the saved checkpoint weights were loaded and tested over 100 episodes with no exploration noise. The agent achieved an average score of **38.89** (σ = 0.19, min = 38.24, max = 39.29), confirming robust performance well above the 30.0 solve condition. The remarkably low standard deviation indicates highly consistent policy execution.
+**Greedy evaluation**: After training, the saved checkpoint weights were loaded and tested over 100 episodes with no exploration noise. The agent achieved an average score of **39.12** (σ = 0.16, min = 38.71, max = 39.42), confirming robust performance well above the 30.0 solve condition. The remarkably low standard deviation indicates highly consistent policy execution.
+
+## Experimental Comparison: BatchNorm vs. No BatchNorm
+
+To evaluate the impact of batch normalization on DDPG training, we ran a controlled ablation study. Both configurations use identical hyperparameters, random seed, and network architecture — the only difference is whether BatchNorm layers are included.
+
+### Motivation
+
+The DDPG paper (Lillicrap et al., 2016) recommends batch normalization to handle inputs with different physical units and scales. The Reacher state vector contains 33 features mixing positions (meters), velocities (m/s), angular velocities (rad/s), and goal-relative vectors. BatchNorm normalizes these disparate scales, but adds computational cost and can introduce train/test discrepancies through running statistics.
+
+### Results
+
+![Experimental Comparison](experiment_comparison.png)
+
+| Metric | With BatchNorm | Without BatchNorm |
+|---|---|---|
+| Solved (100-ep avg ≥ 30) | Episode 153 | Episode 164 |
+| Final 100-ep rolling avg | 37.30 | 37.50 |
+| Greedy test avg (100 ep) | 39.12 | 39.44 |
+| Greedy test std dev | 0.16 | 0.08 |
+
+### Loss Curves
+
+![Loss Curves](loss_curves.png)
+
+The critic loss curves follow similar trajectories for both configurations, peaking around episodes 80–130 as the agent transitions from random to skilled behavior, then declining as the policy stabilizes. The actor loss (negative expected return) decreases monotonically in both cases, reflecting the improving policy. Both configurations converge to comparable final loss values.
+
+### Analysis
+
+Both configurations solve the environment and achieve similar final performance, but with nuanced differences:
+
+1. **Convergence speed**: The BatchNorm variant solves 11 episodes earlier (153 vs. 164), suggesting that input normalization provides a modest advantage during the critical learning phase when the agent transitions from random to purposeful behavior.
+
+2. **Asymptotic performance**: The no-BatchNorm variant achieves slightly higher greedy test scores (39.44 vs. 39.12) with lower variance (σ = 0.08 vs. 0.16). This may be because BatchNorm's running statistics introduce a small train/test discrepancy — during training, batch statistics are used, but during greedy evaluation, running statistics are used, creating a subtle distribution shift.
+
+3. **Stability**: Both variants show comparable training stability with smooth rolling averages and no catastrophic forgetting. The no-BatchNorm variant's lower test variance suggests slightly more consistent policy execution.
+
+### Conclusion
+
+For the 20-agent Reacher environment, BatchNorm provides a modest convergence advantage (~7% fewer episodes to solve) but is not essential — the no-BatchNorm variant performs comparably and even slightly better at test time. This aligns with recent findings that BatchNorm is less critical in actor-critic methods compared to supervised learning, especially when the state space is well-behaved. For this task, the DDPG architecture is robust enough to learn effective policies with or without BatchNorm.
+
+**Limitation**: Both experiments use a single random seed (42). A more rigorous study would repeat each configuration across multiple seeds (e.g., 3–5) and report confidence intervals, as the 11-episode convergence difference could fall within the variance of stochastic training. However, the greedy test results (100 episodes each) provide some statistical grounding — both configurations clearly solve the task with high consistency.
 
 ## Ideas for Future Work
 

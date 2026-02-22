@@ -15,13 +15,16 @@ A DDPG (Deep Deterministic Policy Gradients) agent that learns to control 20 dou
 
 | File | Description |
 |---|---|
-| `Continuous_Control.ipynb` | Main training notebook |
-| `model.py` | Actor and Critic network architectures with BatchNorm |
+| `Continuous_Control.ipynb` | Main training notebook with results and experimental comparison |
+| `model.py` | Actor and Critic network architectures (configurable BatchNorm) |
 | `ddpg_agent.py` | DDPG agent with multi-agent support, OU noise, replay buffer |
-| `Report.md` | Detailed report: algorithm, results, future work |
-| `checkpoint_actor.pth` | Trained actor weights |
-| `checkpoint_critic.pth` | Trained critic weights |
+| `train_experiment.py` | Standalone training script for BatchNorm ablation experiment |
+| `Report.md` | Detailed report: algorithm, results, experimental comparison, future work |
+| `checkpoint_actor.pth` | Trained actor weights (baseline with BatchNorm) |
+| `checkpoint_critic.pth` | Trained critic weights (baseline with BatchNorm) |
 | `scores_plot.png` | Training rewards plot |
+| `experiment_comparison.png` | BatchNorm vs. No-BatchNorm comparison plot |
+| `loss_curves.png` | Actor and critic loss curves for both configurations |
 | `python/` | Bundled Unity ML-Agents Python package (v0.4) |
 | `Reacher.app/` | macOS Unity environment (20-agent version) |
 

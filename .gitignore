@@ -12,3 +12,8 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Training logs and utility scripts
+*.log
+embed_outputs.py
+generate_plots.py
