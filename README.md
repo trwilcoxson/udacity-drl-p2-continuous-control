@@ -39,8 +39,8 @@ A DDPG (Deep Deterministic Policy Gradients) agent that learns to control 20 dou
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/trwilcoxson/udacity-drl-p2-continuous-control.git
-   cd udacity-drl-p2-continuous-control
+   git clone https://github.com/trwilcoxson/ddpg-continuous-control.git
+   cd ddpg-continuous-control
    ```
 
 2. Create and activate the conda environment:
