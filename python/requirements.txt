@@ -4,7 +4,7 @@ numpy>=1.11.0
 jupyter
 pytest>=3.2.2
 pyyaml
-protobuf==3.20.3
+protobuf==5.29.6
 grpcio>=1.48
 torch>=2.0
 pandas
